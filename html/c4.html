@@ -1,0 +1,430 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>c4</title><meta name="generator" content="MATLAB 8.1"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2014-12-27"><meta name="DC.source" content="c4.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, tt, code { font-size:12px; }
+pre { margin:0px 0px 20px; }
+pre.error { color:red; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><pre class="codeinput"><span class="keyword">function</span> test_targets = c4(train_patterns, train_targets, test_patterns, inc_node)
+<span class="comment">% Classify using Quinlan's C4.5 algorithm</span>
+<span class="comment">% Inputs:</span>
+<span class="comment">% 	training_patterns   - Train patterns</span>
+<span class="comment">%	training_targets	- Train targets</span>
+<span class="comment">%   test_patterns       - Test  patterns</span>
+<span class="comment">%	inc_node            - Percentage of incorrectly assigned samples at a node</span>
+<span class="comment">%</span>
+<span class="comment">% Outputs</span>
+<span class="comment">%	test_targets        - Predicted targets</span>
+<span class="comment">%NOTE: In this implementation it is assumed that a pattern vector with fewer than 10 unique values (the parameter Nu)</span>
+<span class="comment">%is discrete, and will be treated as such. Other vectors will be treated as continuous</span>
+[Ni, M]		= size(train_patterns);
+inc_node    = inc_node*M/100;
+Nu          = 10;
+<span class="comment">%Find which of the input patterns are discrete, and discretisize the corresponding</span>
+<span class="comment">%dimension on the test patterns</span>
+discrete_dim = zeros(1,Ni);
+<span class="keyword">for</span> i = 1:Ni,
+    Ub = unique(train_patterns(i,:));
+    Nb = length(Ub);
+    <span class="keyword">if</span> (Nb &lt;= Nu),
+        <span class="comment">%This is a discrete pattern</span>
+        discrete_dim(i)	= Nb;
+        dist            = abs(ones(Nb ,1)*test_patterns(i,:) - Ub'*ones(1, size(test_patterns,2)));
+        [m, in]         = min(dist);
+        test_patterns(i,:)  = Ub(in);
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+<span class="comment">%Build the tree recursively</span>
+disp(<span class="string">'Building tree'</span>)
+tree            = make_tree(train_patterns, train_targets, inc_node, discrete_dim, max(discrete_dim), 0);
+<span class="comment">%Classify test samples</span>
+disp(<span class="string">'Classify test samples using the tree'</span>)
+test_targets    = use_tree(test_patterns, 1:size(test_patterns,2), tree, discrete_dim, unique(train_targets));
+<span class="comment">%END</span>
+<span class="keyword">function</span> targets = use_tree(patterns, indices, tree, discrete_dim, Uc)
+<span class="comment">%Classify recursively using a tree</span>
+targets = zeros(1, size(patterns,2));
+<span class="keyword">if</span> (tree.dim == 0)
+    <span class="comment">%Reached the end of the tree</span>
+    targets(indices) = tree.child;
+    <span class="keyword">return</span>
+<span class="keyword">end</span>
+<span class="comment">%This is not the last level of the tree, so:</span>
+<span class="comment">%First, find the dimension we are to work on</span>
+dim = tree.dim;
+dims= 1:size(patterns,1);
+<span class="comment">%And classify according to it</span>
+<span class="keyword">if</span> (discrete_dim(dim) == 0),
+    <span class="comment">%Continuous pattern</span>
+    in				= indices(find(patterns(dim, indices) &lt;= tree.split_loc));
+    targets		= targets + use_tree(patterns(dims, :), in, tree.child(1), discrete_dim(dims), Uc);
+    in				= indices(find(patterns(dim, indices) &gt;  tree.split_loc));
+    targets		= targets + use_tree(patterns(dims, :), in, tree.child(2), discrete_dim(dims), Uc);
+<span class="keyword">else</span>
+    <span class="comment">%Discrete pattern</span>
+    Uf				= unique(patterns(dim,:));
+    <span class="keyword">for</span> i = 1:length(Uf),
+        <span class="keyword">if</span> any(Uf(i) == tree.Nf) <span class="comment">%Has this sort of data appeared before? If not, do nothing</span>
+            in   	= indices(find(patterns(dim, indices) == Uf(i)));
+            targets	= targets + use_tree(patterns(dims, :), in, tree.child(find(Uf(i)==tree.Nf)), discrete_dim(dims), Uc);
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+<span class="comment">%END use_tree</span>
+<span class="keyword">function</span> tree = make_tree(patterns, targets, inc_node, discrete_dim, maxNbin, base)
+<span class="comment">%Build a tree recursively</span>
+[Ni, L]    					= size(patterns);
+Uc         					= unique(targets);
+tree.dim					= 0;
+<span class="comment">%tree.child(1:maxNbin)	= zeros(1,maxNbin);</span>
+tree.split_loc				= inf;
+<span class="keyword">if</span> isempty(patterns),
+    <span class="keyword">return</span>
+<span class="keyword">end</span>
+<span class="comment">%When to stop: If the dimension is one or the number of examples is small</span>
+<span class="keyword">if</span> ((inc_node &gt; L) | (L == 1) | (length(Uc) == 1)),
+    H					= hist(targets, length(Uc));
+    [m, largest] 	= max(H);
+    tree.Nf         = [];
+    tree.split_loc  = [];
+    tree.child	 	= Uc(largest);
+    <span class="keyword">return</span>
+<span class="keyword">end</span>
+<span class="comment">%Compute the node's I</span>
+<span class="keyword">for</span> i = 1:length(Uc),
+    Pnode(i) = length(find(targets == Uc(i))) / L;
+<span class="keyword">end</span>
+Inode = -sum(Pnode.*log(Pnode)/log(2));
+<span class="comment">%For each dimension, compute the gain ratio impurity</span>
+<span class="comment">%This is done separately for discrete and continuous patterns</span>
+delta_Ib    = zeros(1, Ni);
+split_loc	= ones(1, Ni)*inf;
+<span class="keyword">for</span> i = 1:Ni,
+    data	= patterns(i,:);
+    Ud      = unique(data);
+    Nbins	= length(Ud);
+    <span class="keyword">if</span> (discrete_dim(i)),
+        <span class="comment">%This is a discrete pattern</span>
+        P	= zeros(length(Uc), Nbins);
+        <span class="keyword">for</span> j = 1:length(Uc),
+            <span class="keyword">for</span> k = 1:Nbins,
+                indices 	= find((targets == Uc(j)) &amp; (patterns(i,:) == Ud(k)));
+                P(j,k) 	= length(indices);
+            <span class="keyword">end</span>
+        <span class="keyword">end</span>
+        Pk          = sum(P);
+        P           = P/L;
+        Pk          = Pk/sum(Pk);
+        info        = sum(-P.*log(eps+P)/log(2));
+        delta_Ib(i) = (Inode-sum(Pk.*info))/-sum(Pk.*log(eps+Pk)/log(2));
+    <span class="keyword">else</span>
+        <span class="comment">%This is a continuous pattern</span>
+        P	= zeros(length(Uc), 2);
+          <span class="comment">%Sort the patterns</span>
+          [sorted_data, indices] = sort(data);
+          sorted_targets = targets(indices);
+          <span class="comment">%Calculate the information for each possible split</span>
+          I	= zeros(1, L-1);
+          <span class="keyword">for</span> j = 1:L-1,
+              <span class="comment">%for k =1:length(Uc),</span>
+              <span class="comment">%    P(k,1) = sum(sorted_targets(1:j)        == Uc(k));</span>
+              <span class="comment">%    P(k,2) = sum(sorted_targets(j+1:end)    == Uc(k));</span>
+              <span class="comment">%end</span>
+              P(:, 1) = hist(sorted_targets(1:j) , Uc);
+              P(:, 2) = hist(sorted_targets(j+1:end) , Uc);
+              Ps		= sum(P)/L;
+              P		= P/L;
+              Pk      = sum(P);
+              P1      = repmat(Pk, length(Uc), 1);
+              P1      = P1 + eps*(P1==0);
+              info	= sum(-P.*log(eps+P./P1)/log(2));
+              I(j)	= Inode - sum(info.*Ps);
+          <span class="keyword">end</span>
+          [delta_Ib(i), s] = max(I);
+          split_loc(i) = sorted_data(s);
+      <span class="keyword">end</span>
+  <span class="keyword">end</span>
+<span class="comment">%Find the dimension minimizing delta_Ib</span>
+[m, dim]    = max(delta_Ib);
+dims        = 1:Ni;
+tree.dim    = dim;
+<span class="comment">%Split along the 'dim' dimension</span>
+Nf		= unique(patterns(dim,:));
+Nbins	= length(Nf);
+tree.Nf = Nf;
+tree.split_loc      = split_loc(dim);
+<span class="comment">%If only one value remains for this pattern, one cannot split it.</span>
+<span class="keyword">if</span> (Nbins == 1)
+    H				= hist(targets, length(Uc));
+    [m, largest] 	= max(H);
+    tree.Nf         = [];
+    tree.split_loc  = [];
+    tree.child	 	= Uc(largest);
+    <span class="keyword">return</span>
+<span class="keyword">end</span>
+<span class="keyword">if</span> (discrete_dim(dim)),
+    <span class="comment">%Discrete pattern</span>
+    <span class="keyword">for</span> i = 1:Nbins,
+        indices         = find(patterns(dim, :) == Nf(i));
+        tree.child(i)	= make_tree(patterns(dims, indices), targets(indices), inc_node, discrete_dim(dims), maxNbin, base);
+    <span class="keyword">end</span>
+<span class="keyword">else</span>
+    <span class="comment">%Continuous pattern</span>
+    indices1		   	= find(patterns(dim,:) &lt;= split_loc(dim));
+    indices2	   		= find(patterns(dim,:) &gt; split_loc(dim));
+    <span class="keyword">if</span> ~(isempty(indices1) | isempty(indices2))
+        tree.child(1)	= make_tree(patterns(dims, indices1), targets(indices1), inc_node, discrete_dim(dims), maxNbin, base+1);
+        tree.child(2)	= make_tree(patterns(dims, indices2), targets(indices2), inc_node, discrete_dim(dims), maxNbin, base+1);
+    <span class="keyword">else</span>
+        H				= hist(targets, length(Uc));
+        [m, largest] 	= max(H);
+        tree.child	 	= Uc(largest);
+        tree.dim                = 0;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+</pre><pre class="codeoutput">Error using c4 (line 14)
+Not enough input arguments.
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2013a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+
+function test_targets = c4(train_patterns, train_targets, test_patterns, inc_node)
+% Classify using Quinlan's C4.5 algorithm
+% Inputs:
+% 	training_patterns   - Train patterns
+%	training_targets	- Train targets
+%   test_patterns       - Test  patterns
+%	inc_node            - Percentage of incorrectly assigned samples at a node
+%
+% Outputs
+%	test_targets        - Predicted targets
+%NOTE: In this implementation it is assumed that a pattern vector with fewer than 10 unique values (the parameter Nu)
+%is discrete, and will be treated as such. Other vectors will be treated as continuous
+[Ni, M]		= size(train_patterns);
+inc_node    = inc_node*M/100;
+Nu          = 10;
+%Find which of the input patterns are discrete, and discretisize the corresponding
+%dimension on the test patterns
+discrete_dim = zeros(1,Ni);
+for i = 1:Ni,
+    Ub = unique(train_patterns(i,:));
+    Nb = length(Ub);
+    if (Nb <= Nu),
+        %This is a discrete pattern
+        discrete_dim(i)	= Nb;
+        dist            = abs(ones(Nb ,1)*test_patterns(i,:) - Ub'*ones(1, size(test_patterns,2)));
+        [m, in]         = min(dist);
+        test_patterns(i,:)  = Ub(in);
+    end
+end
+%Build the tree recursively
+disp('Building tree')
+tree            = make_tree(train_patterns, train_targets, inc_node, discrete_dim, max(discrete_dim), 0);
+%Classify test samples
+disp('Classify test samples using the tree')
+test_targets    = use_tree(test_patterns, 1:size(test_patterns,2), tree, discrete_dim, unique(train_targets));
+%END
+function targets = use_tree(patterns, indices, tree, discrete_dim, Uc)
+%Classify recursively using a tree
+targets = zeros(1, size(patterns,2));
+if (tree.dim == 0)
+    %Reached the end of the tree
+    targets(indices) = tree.child;
+    return
+end
+%This is not the last level of the tree, so:
+%First, find the dimension we are to work on
+dim = tree.dim;
+dims= 1:size(patterns,1);
+%And classify according to it
+if (discrete_dim(dim) == 0),
+    %Continuous pattern
+    in				= indices(find(patterns(dim, indices) <= tree.split_loc));
+    targets		= targets + use_tree(patterns(dims, :), in, tree.child(1), discrete_dim(dims), Uc);
+    in				= indices(find(patterns(dim, indices) >  tree.split_loc));
+    targets		= targets + use_tree(patterns(dims, :), in, tree.child(2), discrete_dim(dims), Uc);
+else
+    %Discrete pattern
+    Uf				= unique(patterns(dim,:));
+    for i = 1:length(Uf),
+        if any(Uf(i) == tree.Nf) %Has this sort of data appeared before? If not, do nothing
+            in   	= indices(find(patterns(dim, indices) == Uf(i)));
+            targets	= targets + use_tree(patterns(dims, :), in, tree.child(find(Uf(i)==tree.Nf)), discrete_dim(dims), Uc);
+        end
+    end
+end
+%END use_tree
+function tree = make_tree(patterns, targets, inc_node, discrete_dim, maxNbin, base)
+%Build a tree recursively
+[Ni, L]    					= size(patterns);
+Uc         					= unique(targets);
+tree.dim					= 0;
+%tree.child(1:maxNbin)	= zeros(1,maxNbin);
+tree.split_loc				= inf;
+if isempty(patterns),
+    return
+end
+%When to stop: If the dimension is one or the number of examples is small
+if ((inc_node > L) | (L == 1) | (length(Uc) == 1)),
+    H					= hist(targets, length(Uc));
+    [m, largest] 	= max(H);
+    tree.Nf         = [];
+    tree.split_loc  = [];
+    tree.child	 	= Uc(largest);
+    return
+end
+%Compute the node's I
+for i = 1:length(Uc),
+    Pnode(i) = length(find(targets == Uc(i))) / L;
+end
+Inode = -sum(Pnode.*log(Pnode)/log(2));
+%For each dimension, compute the gain ratio impurity
+%This is done separately for discrete and continuous patterns
+delta_Ib    = zeros(1, Ni);
+split_loc	= ones(1, Ni)*inf;
+for i = 1:Ni,
+    data	= patterns(i,:);
+    Ud      = unique(data);
+    Nbins	= length(Ud);
+    if (discrete_dim(i)),
+        %This is a discrete pattern
+        P	= zeros(length(Uc), Nbins);
+        for j = 1:length(Uc),
+            for k = 1:Nbins,
+                indices 	= find((targets == Uc(j)) & (patterns(i,:) == Ud(k)));
+                P(j,k) 	= length(indices);
+            end
+        end
+        Pk          = sum(P);
+        P           = P/L;
+        Pk          = Pk/sum(Pk);
+        info        = sum(-P.*log(eps+P)/log(2));
+        delta_Ib(i) = (Inode-sum(Pk.*info))/-sum(Pk.*log(eps+Pk)/log(2));
+    else
+        %This is a continuous pattern
+        P	= zeros(length(Uc), 2);
+          %Sort the patterns
+          [sorted_data, indices] = sort(data);
+          sorted_targets = targets(indices);
+          %Calculate the information for each possible split
+          I	= zeros(1, L-1);
+          for j = 1:L-1,
+              %for k =1:length(Uc),
+              %    P(k,1) = sum(sorted_targets(1:j)        == Uc(k));
+              %    P(k,2) = sum(sorted_targets(j+1:end)    == Uc(k));
+              %end
+              P(:, 1) = hist(sorted_targets(1:j) , Uc);
+              P(:, 2) = hist(sorted_targets(j+1:end) , Uc);
+              Ps		= sum(P)/L;
+              P		= P/L;
+              Pk      = sum(P);            
+              P1      = repmat(Pk, length(Uc), 1);
+              P1      = P1 + eps*(P1==0);
+              info	= sum(-P.*log(eps+P./P1)/log(2));
+              I(j)	= Inode - sum(info.*Ps);
+          end
+          [delta_Ib(i), s] = max(I);
+          split_loc(i) = sorted_data(s);
+      end
+  end
+%Find the dimension minimizing delta_Ib
+[m, dim]    = max(delta_Ib);
+dims        = 1:Ni;
+tree.dim    = dim;
+%Split along the 'dim' dimension
+Nf		= unique(patterns(dim,:));
+Nbins	= length(Nf);
+tree.Nf = Nf;
+tree.split_loc      = split_loc(dim);
+%If only one value remains for this pattern, one cannot split it.
+if (Nbins == 1)
+    H				= hist(targets, length(Uc));
+    [m, largest] 	= max(H);
+    tree.Nf         = [];
+    tree.split_loc  = [];
+    tree.child	 	= Uc(largest);
+    return
+end
+if (discrete_dim(dim)),
+    %Discrete pattern
+    for i = 1:Nbins,
+        indices         = find(patterns(dim, :) == Nf(i));
+        tree.child(i)	= make_tree(patterns(dims, indices), targets(indices), inc_node, discrete_dim(dims), maxNbin, base);
+    end
+else
+    %Continuous pattern
+    indices1		   	= find(patterns(dim,:) <= split_loc(dim));
+    indices2	   		= find(patterns(dim,:) > split_loc(dim));
+    if ~(isempty(indices1) | isempty(indices2))
+        tree.child(1)	= make_tree(patterns(dims, indices1), targets(indices1), inc_node, discrete_dim(dims), maxNbin, base+1);
+        tree.child(2)	= make_tree(patterns(dims, indices2), targets(indices2), inc_node, discrete_dim(dims), maxNbin, base+1);
+    else
+        H				= hist(targets, length(Uc));
+        [m, largest] 	= max(H);
+        tree.child	 	= Uc(largest);
+        tree.dim                = 0;
+    end
+end
+
+
+##### SOURCE END #####
+--></body></html>
